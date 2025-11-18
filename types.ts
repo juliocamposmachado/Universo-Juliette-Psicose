@@ -1,3 +1,4 @@
+
 export interface Character {
   name: string;
   version: string;
@@ -53,14 +54,19 @@ export interface GeneratedSound {
     audioUrl?: string;     // Temporary, playable Blob URL
 }
 
+// --- NOVOS TIPOS PARA O MÓDULO DE ORGANIZAÇÃO ---
+export type FileType = 'folder' | 'note' | 'image' | 'video' | 'audio';
 
-// FIX: Centralized AIStudio interface and window augmentation to avoid redeclaration errors.
-// This makes the type available globally.
-export interface AIStudio {
-  hasSelectedApiKey: () => Promise<boolean>;
-  openSelectKey: () => Promise<void>;
+export interface FileSystemItem {
+  id: string;
+  parentId: string | null; // null significa raiz
+  name: string;
+  type: FileType;
+  content?: string; // Para notas (texto) ou Base64 para mídias
+  createdAt: number;
 }
 
-// NOTE: The global window augmentation has been moved to src/types.ts
-// to resolve duplicate identifier errors. All modules now rely on that file
-// for global type safety regarding 'window.aistudio'.
+export interface AIStudio {
+  hasSelectedApiKey(): Promise<boolean>;
+  openSelectKey(): Promise<void>;
+}
