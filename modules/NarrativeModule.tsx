@@ -4,6 +4,7 @@ import { Button } from '../components/Button';
 import { Loader } from '../components/Loader';
 import { LocalStorageWarning } from '../components/LocalStorageWarning';
 import type { NarrativeProject, ChatMessage } from '../types';
+import { ApiKeyInput } from '../components/ApiKeyInput';
 
 // Função de utilidade para download do histórico
 const downloadChatHistory = (project: NarrativeProject) => {
@@ -48,7 +49,7 @@ const ProjectCard: React.FC<{ project: NarrativeProject; onSelect: () => void }>
 );
 
 // Componente para a tela de Chat/Edição
-const NarrativeEditor: React.FC<{ project: NarrativeProject; onBack: () => void; onUpdateProject: (updatedProject: NarrativeProject) => void; }> = ({ project, onBack, onUpdateProject }) => {
+const NarrativeEditor: React.FC<{ project: NarrativeProject; onBack: () => void; onUpdateProject: (updatedProject: NarrativeProject) => void; apiKey: string; }> = ({ project, onBack, onUpdateProject, apiKey }) => {
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -58,7 +59,7 @@ const NarrativeEditor: React.FC<{ project: NarrativeProject; onBack: () => void;
   }, [project.chatHistory]);
 
   const handleSendMessage = useCallback(async () => {
-    if (!userInput.trim()) return;
+    if (!userInput.trim() || !apiKey) return;
 
     const userMessage: ChatMessage = { sender: 'user', text: userInput };
     let updatedHistory = [...project.chatHistory, userMessage];
@@ -76,7 +77,8 @@ const NarrativeEditor: React.FC<{ project: NarrativeProject; onBack: () => void;
         Seja descritivo e cinematográfico.
         Depois do roteiro, adicione uma quebra "---" e então escreva um prompt curto e direto para uma IA de imagem gerar um esboço para esta cena.
       `;
-      const narrativeResult = await generateNarrative(scriptPrompt, 'Comic Script');
+      // FIX: Added apiKey as the first argument to generateNarrative.
+      const narrativeResult = await generateNarrative(apiKey, scriptPrompt, 'Comic Script');
       
       const [script, imagePrompt] = narrativeResult.split('---');
 
@@ -85,7 +87,8 @@ const NarrativeEditor: React.FC<{ project: NarrativeProject; onBack: () => void;
       onUpdateProject({ ...project, chatHistory: updatedHistory });
       
       if (imagePrompt && imagePrompt.trim()) {
-        const sketchUrl = await generateArt(imagePrompt.trim());
+        // FIX: Added apiKey as the first argument to generateArt.
+        const sketchUrl = await generateArt(apiKey, imagePrompt.trim());
         const finalAiMessage = { ...aiMessage, sketches: [sketchUrl], isLoadingSketches: false };
         const finalHistory = [...updatedHistory.slice(0, -1), finalAiMessage];
         onUpdateProject({ ...project, chatHistory: finalHistory });
@@ -98,7 +101,7 @@ const NarrativeEditor: React.FC<{ project: NarrativeProject; onBack: () => void;
     } finally {
       setIsLoading(false);
     }
-  }, [userInput, project, onUpdateProject]);
+  }, [userInput, project, onUpdateProject, apiKey]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)] bg-gray-800 rounded-lg shadow-lg border border-gray-700">
@@ -143,9 +146,9 @@ const NarrativeEditor: React.FC<{ project: NarrativeProject; onBack: () => void;
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSendMessage()}
-            disabled={isLoading}
+            disabled={isLoading || !apiKey}
           />
-          <Button onClick={handleSendMessage} isLoading={isLoading}>
+          <Button onClick={handleSendMessage} isLoading={isLoading} disabled={!apiKey}>
             Enviar
           </Button>
         </div>
@@ -156,6 +159,7 @@ const NarrativeEditor: React.FC<{ project: NarrativeProject; onBack: () => void;
 
 
 export const NarrativeModule: React.FC = () => {
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('juliette_api_key_narrative') || '');
   const [view, setView] = useState<'list' | 'editor'>('list');
   const [activeProject, setActiveProject] = useState<NarrativeProject | null>(null);
   
@@ -208,18 +212,23 @@ export const NarrativeModule: React.FC = () => {
 
 
   if (view === 'editor' && activeProject) {
-    return <NarrativeEditor project={activeProject} onBack={() => setView('list')} onUpdateProject={handleUpdateProject} />;
+    return <NarrativeEditor project={activeProject} onBack={() => setView('list')} onUpdateProject={handleUpdateProject} apiKey={apiKey} />;
   }
 
   return (
     <div className="space-y-6">
       <LocalStorageWarning />
+      <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+        <h3 className="text-xl font-semibold text-white mb-4">API Key - Módulo de Narrativa</h3>
+        <ApiKeyInput initialKey={apiKey} onKeyChange={setApiKey} moduleName="narrative" />
+      </div>
+
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-white">Meus Projetos Narrativos</h2>
-        <Button onClick={handleCreateNew}>Criar Nova HQ</Button>
+        <Button onClick={handleCreateNew} disabled={!apiKey}>Criar Nova HQ</Button>
       </div>
       
-      {projects.length > 0 ? (
+      {apiKey && projects.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map(p => (
             <ProjectCard key={p.id} project={p} onSelect={() => handleSelectProject(p)} />
@@ -227,8 +236,8 @@ export const NarrativeModule: React.FC = () => {
         </div>
       ) : (
         <div className="text-center py-16 bg-gray-800 rounded-lg border-2 border-dashed border-gray-700">
-           <h3 className="text-xl font-semibold text-white mb-2">Nenhum projeto narrativo ainda.</h3>
-           <p className="text-gray-400 mb-4">Clique em "Criar Nova HQ" para começar sua primeira história.</p>
+           <h3 className="text-xl font-semibold text-white mb-2">{!apiKey ? 'Chave de API Necessária' : 'Nenhum projeto narrativo ainda.'}</h3>
+           <p className="text-gray-400 mb-4">{!apiKey ? 'Por favor, insira sua chave de API para criar e editar projetos.' : 'Clique em "Criar Nova HQ" para começar sua primeira história.'}</p>
         </div>
       )}
     </div>

@@ -3,9 +3,11 @@ import { generateArt } from '../services/geminiService';
 import { Button } from '../components/Button';
 import { Loader } from '../components/Loader';
 import { LocalStorageWarning } from '../components/LocalStorageWarning';
+import { ApiKeyInput } from '../components/ApiKeyInput';
 import type { GeneratedArt } from '../types';
 
 export const VisualArtsModule: React.FC = () => {
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('juliette_api_key_visuals') || '');
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -28,28 +30,33 @@ export const VisualArtsModule: React.FC = () => {
   }, [arts]);
 
   const handleGenerate = useCallback(async () => {
-    if (!prompt) return;
+    if (!prompt || !apiKey) return;
     setIsLoading(true);
     try {
-      const result = await generateArt(prompt);
-      if (result && !result.startsWith("Falha")) {
+      // FIX: Added apiKey as the first argument to generateArt.
+      const result = await generateArt(apiKey, prompt);
+      if (result && !result.startsWith("Falha") && !result.startsWith("Erro:")) {
         setArts(prev => [{ prompt, imageUrl: result }, ...prev]);
         setPrompt('');
       } else {
         console.error(result);
+        // TODO: Show an error message to the user
       }
     } catch (error) {
       console.error("Failed to generate art", error);
     } finally {
       setIsLoading(false);
     }
-  }, [prompt]);
+  }, [prompt, apiKey]);
 
   return (
     <div className="space-y-6">
       <LocalStorageWarning />
       <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
         <h3 className="text-xl font-semibold text-white mb-4">Gerador de Artes Visuais</h3>
+        <div className="mb-4">
+          <ApiKeyInput initialKey={apiKey} onKeyChange={setApiKey} moduleName="visuals" />
+        </div>
         <div className="flex flex-col sm:flex-row gap-4">
           <input
             type="text"
@@ -57,9 +64,10 @@ export const VisualArtsModule: React.FC = () => {
             placeholder="Ex: Juliette em uma cidade cyberpunk chuvosa..."
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleGenerate()}
+            onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleGenerate()}
+            disabled={!apiKey || isLoading}
           />
-          <Button onClick={handleGenerate} isLoading={isLoading} disabled={!prompt} className="sm:w-auto w-full">
+          <Button onClick={handleGenerate} isLoading={isLoading} disabled={!prompt || !apiKey} className="sm:w-auto w-full">
             Gerar Arte
           </Button>
         </div>

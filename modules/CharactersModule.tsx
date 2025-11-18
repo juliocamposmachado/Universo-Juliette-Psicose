@@ -4,6 +4,8 @@ import { Button } from '../components/Button';
 import { Loader } from '../components/Loader';
 import { LocalStorageWarning } from '../components/LocalStorageWarning';
 import type { Character } from '../types';
+// FIX: Import ApiKeyInput to manage the API key for this module.
+import { ApiKeyInput } from '../components/ApiKeyInput';
 
 const downloadJSON = (data: object, filename: string) => {
   const jsonStr = JSON.stringify(data, null, 2);
@@ -110,6 +112,8 @@ const CharacterCard: React.FC<{ character: Character }> = ({ character }) => (
 
 
 export const CharactersModule: React.FC = () => {
+  // FIX: Add state for API key, which is required for character generation.
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('juliette_api_key_characters') || '');
   const [isLoading, setIsLoading] = useState(false);
   const [userPrompt, setUserPrompt] = useState('');
   const [characters, setCharacters] = useState<Character[]>(() => {
@@ -132,9 +136,12 @@ export const CharactersModule: React.FC = () => {
 
 
   const handleGenerate = useCallback(async () => {
+    // FIX: Add check for API key before making a request.
+    if (!apiKey) return;
     setIsLoading(true);
     try {
-      const result = await generateCharacter(userPrompt);
+      // FIX: Pass the API key and prompt correctly to the service function.
+      const result = await generateCharacter(apiKey, userPrompt);
       if (result) {
         setCharacters(prev => [result, ...prev]);
         setUserPrompt('');
@@ -144,13 +151,16 @@ export const CharactersModule: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [userPrompt]);
+  // FIX: Add apiKey to the dependency array.
+  }, [userPrompt, apiKey]);
 
   return (
     <div className="space-y-6">
       <LocalStorageWarning />
       <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 space-y-4">
         <h3 className="text-xl font-semibold text-white">Fichas de Personagens</h3>
+        {/* FIX: Add the ApiKeyInput component to allow users to enter their API key. */}
+        <ApiKeyInput initialKey={apiKey} onKeyChange={setApiKey} moduleName="characters" />
         <div className="space-y-2">
             <label htmlFor="character-prompt" className="block text-sm font-medium text-gray-300">
                 Adicione um comentário ou ideia para guiar a criação:
@@ -162,10 +172,12 @@ export const CharactersModule: React.FC = () => {
                 placeholder="Ex: Uma Juliette que é uma artista reclusa com o poder de pintar o futuro..."
                 value={userPrompt}
                 onChange={(e) => setUserPrompt(e.target.value)}
+                // FIX: Disable textarea if API key is not present or if loading.
+                disabled={!apiKey || isLoading}
             />
         </div>
         <div className="flex justify-end">
-            <Button onClick={handleGenerate} isLoading={isLoading}>
+            <Button onClick={handleGenerate} isLoading={isLoading} disabled={!apiKey}>
               Gerar Novo Personagem
             </Button>
         </div>

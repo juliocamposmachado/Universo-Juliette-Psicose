@@ -45,6 +45,14 @@ export interface TimelineClip {
     thumbnail: string; // Data URL for the thumbnail
 }
 
+// --- NOVO TIPO PARA O MÓDULO DE SOM ---
+export interface GeneratedSound {
+    id: string;
+    prompt: string;
+    audioBase64: string;
+}
+
+
 // FIX: Centralized AIStudio interface and window augmentation to avoid redeclaration errors.
 // This makes the type available globally.
 export interface AIStudio {

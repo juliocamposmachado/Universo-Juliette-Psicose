@@ -40,6 +40,7 @@ A plataforma é estruturada em módulos, cada um focado em um aspecto diferente 
 ### ✨ Funcionalidades Transversais
 - **Persistência Local:** Todo o seu trabalho é salvo automaticamente no `localStorage` do navegador, permitindo que você continue de onde parou.
 - **Exportação de Conteúdo:** Baixe o histórico de suas narrativas e as fichas de seus personagens em formatos `.txt` e `.json`.
+- **Gerenciamento de API por Módulo:** Cada módulo possui seu próprio campo para inserir uma chave de API do Google Gemini, permitindo distribuir o uso e evitar que a cota de um módulo afete os outros.
 
 ---
 
@@ -63,16 +64,15 @@ A plataforma é estruturada em módulos, cada um focado em um aspecto diferente 
     ```
 
 2.  **Instale as Dependências:**
+    (Assumindo um ambiente com Node.js e npm)
     ```bash
     npm install
     ```
 
 3.  **Configure sua Chave de API:**
-    - Para a maioria das funcionalidades, a chave de API do Google Gemini deve ser configurada como uma variável de ambiente. Crie um arquivo `.env` na raiz do projeto e adicione:
-      ```
-      API_KEY=SUA_CHAVE_API_AQUI
-      ```
-    - Para o módulo de vídeo, a plataforma pedirá que você selecione a chave diretamente na interface, devido aos custos mais elevados de processamento.
+    - A plataforma foi projetada para usar chaves de API do Google Gemini inseridas diretamente na interface de cada módulo.
+    - Para começar, obtenha sua chave de API no [Google AI Studio](https://aistudio.google.com/app/apikey).
+    - Em cada módulo (Narrativa, Artes Visuais, etc.), haverá um campo para você colar e salvar sua chave. Ela será armazenada localmente no seu navegador.
 
 4.  **Inicie a Aplicação:**
     ```bash

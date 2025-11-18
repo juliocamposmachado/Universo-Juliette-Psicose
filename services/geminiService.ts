@@ -1,16 +1,8 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
+import { ApiKeyInput } from '../components/ApiKeyInput';
 
-const API_KEY = process.env.API_KEY;
-
-if (!API_KEY) {
-  // In a real app, you'd show a UI error. For this context, we'll log and throw.
-  console.error("API_KEY environment variable not set.");
-  // This will prevent the app from running without an API key.
-  // In the target environment, process.env.API_KEY will be populated.
-  // throw new Error("API_KEY environment variable not set.");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+// This file no longer uses a single global API_KEY.
+// The key is passed into each function from the corresponding module.
 
 const SAGA_STYLE_PROMPT = `
 Você é a IA criativa do 'Universo Juliette Psicose'.
@@ -23,8 +15,10 @@ Seu estilo deve ser sempre:
 Mantenha essa essência em todas as suas criações.
 `;
 
-export const generateNarrative = async (prompt: string, type: string): Promise<string> => {
+export const generateNarrative = async (apiKey: string, prompt: string, type: string): Promise<string> => {
+  if (!apiKey) return "Erro: Chave de API não fornecida.";
   try {
+    const ai = new GoogleGenAI({ apiKey });
     const fullPrompt = `
       ${SAGA_STYLE_PROMPT}
       Gere um conteúdo de narrativa do tipo "${type}" com base na seguinte ideia: "${prompt}".
@@ -46,8 +40,10 @@ export const generateNarrative = async (prompt: string, type: string): Promise<s
   }
 };
 
-export const generateArt = async (prompt: string): Promise<string> => {
+export const generateArt = async (apiKey: string, prompt: string): Promise<string> => {
+  if (!apiKey) return "Erro: Chave de API não fornecida.";
   try {
+    const ai = new GoogleGenAI({ apiKey });
     const fullPrompt = `
       Crie uma arte conceitual para o 'Universo Juliette Psicose'.
       Estilo: dark, surreal, cyberpunk, poético, com elementos de horror psicológico.
@@ -75,8 +71,10 @@ export const generateArt = async (prompt: string): Promise<string> => {
   }
 };
 
-export const generateCharacter = async (prompt?: string): Promise<any> => {
+export const generateCharacter = async (apiKey: string, prompt?: string): Promise<any> => {
+  if (!apiKey) return null;
   try {
+     const ai = new GoogleGenAI({ apiKey });
      const generationPrompt = prompt
       ? `Com base na seguinte ideia: "${prompt}", gere uma nova ficha de personagem para o universo 'Juliette Psicose'. A ficha deve incluir uma de suas versões alternativas, poderes, psicologia complexa e contradições internas.`
       : "Gere uma nova ficha de personagem para o universo 'Juliette Psicose', incluindo uma de suas versões alternativas, poderes, psicologia complexa e contradições internas.";
@@ -112,15 +110,17 @@ export const generateCharacter = async (prompt?: string): Promise<any> => {
   }
 };
 
-// Nova função para gerar segmentos de vídeo
 export const generateVideoSegment = async (
+    apiKey: string,
     prompt: string, 
     referenceImage: string | null,
     onStatusUpdate: (status: string) => void
 ): Promise<string> => {
-    // A chave de API selecionada pelo usuário é injetada automaticamente.
-    // Criamos uma nova instância para garantir que estamos usando a mais recente.
-    const videoAI = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    if (!apiKey) {
+      onStatusUpdate("Erro: Chave de API não fornecida.");
+      throw new Error("API key is required.");
+    }
+    const videoAI = new GoogleGenAI({ apiKey });
     
     const fullPrompt = `${SAGA_STYLE_PROMPT}\nCrie uma cena de vídeo para o 'Universo Juliette Psicose'. Prompt: ${prompt}`;
     
@@ -158,8 +158,7 @@ export const generateVideoSegment = async (
             throw new Error("Link para download do vídeo não encontrado.");
         }
         
-        // A chave de API é necessária para o download
-        const videoResponse = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+        const videoResponse = await fetch(`${downloadLink}&key=${apiKey}`);
         if (!videoResponse.ok) {
             const errorBody = await videoResponse.text();
             throw new Error(`Falha ao baixar o vídeo: ${videoResponse.statusText} - ${errorBody}`);
@@ -172,23 +171,84 @@ export const generateVideoSegment = async (
     } catch (error: any) {
         console.error("Error generating video segment:", error);
         
-        // Check for quota exceeded error first.
-        if (error.message && (error.message.includes("429") || error.message.includes("RESOURCE_EXHAUSTED"))) {
+        const errorMessage = error.message || '';
+        if (errorMessage.includes("429") || errorMessage.includes("RESOURCE_EXHAUSTED")) {
             const friendlyMessage = "Erro: Cota de uso da API excedida. Verifique seu plano e faturamento.";
             onStatusUpdate(friendlyMessage);
             throw new Error("QUOTA_EXCEEDED");
         }
         
-        // Check for invalid API key
-        if (error.message && error.message.includes("Requested entity was not found.")) {
-             const friendlyMessage = "Erro: A chave de API pode ser inválida. Tente selecionar outra.";
+        if (errorMessage.includes("API key not valid") || errorMessage.includes("API_KEY_INVALID")) {
+             const friendlyMessage = "Erro: A chave de API fornecida é inválida.";
              onStatusUpdate(friendlyMessage);
-             throw new Error("API_KEY_NOT_FOUND");
+             throw new Error("API_KEY_INVALID");
         }
         
-        // For any other error
         const friendlyMessage = `Falha ao gerar vídeo. Verifique o console para detalhes.`;
         onStatusUpdate(friendlyMessage);
-        throw error; // Re-throw the original error
+        throw error;
+    }
+};
+
+export const generateSound = async (
+    apiKey: string,
+    prompt: string,
+    duration: '15s' | '30s' | '1 min' | '2 min' | '2 min+'
+): Promise<string> => {
+    if (!apiKey) return "";
+    try {
+        const ai = new GoogleGenAI({ apiKey });
+
+        // Etapa 1: Gerar um roteiro com a duração apropriada
+        let wordCount;
+        switch (duration) {
+            case '15s': wordCount = 40; break;
+            case '30s': wordCount = 80; break;
+            case '1 min': wordCount = 160; break;
+            case '2 min': wordCount = 320; break;
+            case '2 min+': wordCount = 450; break;
+            default: wordCount = 40;
+        }
+
+        const scriptGenerationPrompt = `
+            ${SAGA_STYLE_PROMPT}
+            Com base na seguinte ideia para uma música/trilha sonora: "${prompt}", escreva um monólogo poético ou uma narrativa curta que capture essa essência.
+            O texto deve ter aproximadamente ${wordCount} palavras para que, ao ser narrado, dure o tempo desejado.
+            Não inclua títulos ou anotações, apenas o texto a ser falado.
+        `;
+
+        const scriptResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: scriptGenerationPrompt,
+        });
+
+        const scriptToNarrate = scriptResponse.text;
+        if (!scriptToNarrate) {
+            throw new Error("Falha ao gerar o roteiro para o áudio.");
+        }
+
+        // Etapa 2: Gerar áudio a partir do roteiro criado
+        const audioResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash-preview-tts",
+            contents: [{ parts: [{ text: scriptToNarrate }] }],
+            config: {
+                responseModalities: [Modality.AUDIO],
+                speechConfig: {
+                    voiceConfig: {
+                      prebuiltVoiceConfig: { voiceName: 'Kore' }, // Uma voz versátil
+                    },
+                },
+            },
+        });
+
+        const base64Audio = audioResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        if (base64Audio) {
+            return `data:audio/wav;base64,${base64Audio}`;
+        }
+        return "";
+
+    } catch (error) {
+        console.error("Error generating sound:", error);
+        return "";
     }
 };

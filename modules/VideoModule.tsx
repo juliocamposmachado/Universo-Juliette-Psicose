@@ -3,28 +3,8 @@ import { generateVideoSegment } from '../services/geminiService';
 import { Button } from '../components/Button';
 import { Loader } from '../components/Loader';
 import { LocalStorageWarning } from '../components/LocalStorageWarning';
+import { ApiKeyInput } from '../components/ApiKeyInput';
 import type { TimelineClip } from '../types';
-
-// FIX: Removed local AIStudio interface and window augmentation.
-// The type declaration is now centralized in `types.ts` to prevent redeclaration errors.
-
-const ApiKeySelector: React.FC<{ onKeySelected: () => void }> = ({ onKeySelected }) => (
-  <div className="flex flex-col items-center justify-center h-full bg-gray-800 rounded-lg p-8 text-center border-2 border-dashed border-gray-700">
-    <h2 className="text-2xl font-bold text-white mb-4">Requer Chave de API para Vídeo</h2>
-    <p className="text-gray-400 mb-6 max-w-md">
-      A geração de vídeo com o modelo Veo requer que você selecione sua própria chave de API do Google AI Studio. O uso está sujeito aos termos e cobranças da sua conta.
-    </p>
-    <Button onClick={async () => {
-      await window.aistudio.openSelectKey();
-      onKeySelected();
-    }}>
-      Selecionar Chave de API
-    </Button>
-    <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="mt-4 text-sm text-indigo-400 hover:underline">
-      Saiba mais sobre cobranças
-    </a>
-  </div>
-);
 
 const createVideoThumbnail = (videoSrc: string): Promise<string> => {
   return new Promise((resolve) => {
@@ -49,7 +29,7 @@ const createVideoThumbnail = (videoSrc: string): Promise<string> => {
 };
 
 export const VideoModule: React.FC = () => {
-  const [apiKeySelected, setApiKeySelected] = useState<boolean | null>(null);
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('juliette_api_key_video') || '');
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
@@ -67,10 +47,6 @@ export const VideoModule: React.FC = () => {
   const draggedOverItem = useRef<number | null>(null);
 
   useEffect(() => {
-    window.aistudio.hasSelectedApiKey().then(setApiKeySelected);
-  }, []);
-
-  useEffect(() => {
     try {
       localStorage.setItem('juliette_video_clips', JSON.stringify(clips));
     } catch (e) { console.error("Falha ao salvar clips no LocalStorage:", e); }
@@ -83,12 +59,15 @@ export const VideoModule: React.FC = () => {
   }, [clips, activeClipSrc]);
 
   const handleGenerate = useCallback(async () => {
-    if (!prompt) return;
+    if (!prompt || !apiKey) {
+        if (!apiKey) setStatusMessage("Erro: Por favor, insira uma chave de API para continuar.");
+        return;
+    };
     setIsLoading(true);
     setStatusMessage(''); // Limpa mensagens anteriores no início
 
     try {
-      const result = await generateVideoSegment(prompt, referenceImage, setStatusMessage);
+      const result = await generateVideoSegment(apiKey, prompt, referenceImage, setStatusMessage);
       
       const thumbnail = await createVideoThumbnail(result);
       const newClip: TimelineClip = {
@@ -108,15 +87,11 @@ export const VideoModule: React.FC = () => {
     } catch (error: any) {
         console.error("Falha na geração do vídeo", error);
         // A mensagem de erro já foi definida pelo serviço através de onStatusUpdate.
-        // Apenas lidamos com a lógica específica da UI aqui.
-        if (error.message === "API_KEY_NOT_FOUND") {
-            setApiKeySelected(false);
-        }
     } finally {
       setIsLoading(false);
       // A mensagem de status não é limpa aqui para que os erros persistam na tela.
     }
-  }, [prompt, referenceImage]);
+  }, [prompt, apiKey, referenceImage]);
   
   const handleSort = () => {
     if (draggedItem.current === null || draggedOverItem.current === null) return;
@@ -127,13 +102,6 @@ export const VideoModule: React.FC = () => {
     draggedItem.current = null;
     draggedOverItem.current = null;
   };
-
-  if (apiKeySelected === null) {
-    return <div className="flex items-center justify-center h-full"><Loader text="Verificando..." /></div>;
-  }
-  if (!apiKeySelected) {
-    return <ApiKeySelector onKeySelected={() => setApiKeySelected(true)} />;
-  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)] space-y-4">
@@ -155,6 +123,7 @@ export const VideoModule: React.FC = () => {
         </div>
         <div className="bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700 flex flex-col space-y-4">
             <h3 className="text-xl font-semibold text-white">Gerador de Cenas</h3>
+            <ApiKeyInput initialKey={apiKey} onKeyChange={setApiKey} moduleName="video" />
             <div className="space-y-2 flex-1 flex flex-col">
                 <label htmlFor="video-prompt" className="block text-sm font-medium text-gray-300">
                     Descreva a cena:
@@ -166,6 +135,7 @@ export const VideoModule: React.FC = () => {
                     placeholder="Ex: Close-up de Juliette em uma sacada, olhando para uma cidade cyberpunk chuvosa..."
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
+                    disabled={!apiKey}
                 />
             </div>
             {referenceImage && (
@@ -177,7 +147,7 @@ export const VideoModule: React.FC = () => {
                     </div>
                 </div>
             )}
-            <Button onClick={handleGenerate} isLoading={isLoading} disabled={!prompt}>
+            <Button onClick={handleGenerate} isLoading={isLoading} disabled={!prompt || !apiKey}>
               Gerar Vídeo
             </Button>
             {statusMessage && !isLoading && (
