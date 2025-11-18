@@ -2,9 +2,11 @@
 import React, { useState, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
+import { SplashScreen } from './components/SplashScreen';
 import { MODULES, ModuleKey } from './constants';
 
 const App: React.FC = () => {
+  const [showSplash, setShowSplash] = useState(true);
   const [activeModule, setActiveModule] = useState<ModuleKey>('dashboard');
 
   const ActiveModuleComponent = MODULES[activeModule]?.component;
@@ -13,8 +15,16 @@ const App: React.FC = () => {
     setActiveModule(module);
   }, []);
 
+  const handleEnter = useCallback(() => {
+    setShowSplash(false);
+  }, []);
+
+  if (showSplash) {
+    return <SplashScreen onEnter={handleEnter} />;
+  }
+
   return (
-    <div className="flex h-screen bg-gray-900 text-gray-200">
+    <div className="flex h-screen bg-gray-900 text-gray-200 animate-fade-in">
       <Sidebar activeModule={activeModule} onSelectModule={handleSelectModule} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header title={MODULES[activeModule]?.name || 'Dashboard'} />

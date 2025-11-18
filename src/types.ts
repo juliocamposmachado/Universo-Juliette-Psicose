@@ -45,15 +45,5 @@ export interface TimelineClip {
     thumbnail: string; // Data URL for the thumbnail
 }
 
-// FIX: Centralized AIStudio interface and window augmentation to avoid redeclaration errors.
-// This makes the type available globally.
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-
-  interface Window {
-    aistudio: AIStudio;
-  }
-}
+// FIX: Removed duplicated global declaration for AIStudio and Window to resolve TypeScript errors.
+// The single source of truth for these global types is in the root `types.ts` file.
