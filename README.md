@@ -80,3 +80,6 @@ A plataforma é estruturada em módulos, cada um focado em um aspecto diferente 
     ```
 
 O aplicativo estará disponível em `http://localhost:3000` (ou outra porta, dependendo da sua configuração).
+
+<img width="1365" height="717" alt="image" src="https://github.com/user-attachments/assets/f3a04f3f-311d-45d3-809f-cc3b06a41262" />
+
