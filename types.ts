@@ -49,7 +49,8 @@ export interface TimelineClip {
 export interface GeneratedSound {
     id: string;
     prompt: string;
-    audioBase64: string;
+    audioBase64: string; // Raw data for persistence
+    audioUrl?: string;     // Temporary, playable Blob URL
 }
 
 
@@ -60,8 +61,6 @@ export interface AIStudio {
   openSelectKey: () => Promise<void>;
 }
 
-declare global {
-  interface Window {
-    aistudio: AIStudio;
-  }
-}
+// NOTE: The global window augmentation has been moved to src/types.ts
+// to resolve duplicate identifier errors. All modules now rely on that file
+// for global type safety regarding 'window.aistudio'.

@@ -1,5 +1,4 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import { ApiKeyInput } from '../components/ApiKeyInput';
 
 // This file no longer uses a single global API_KEY.
 // The key is passed into each function from the corresponding module.
@@ -243,7 +242,7 @@ export const generateSound = async (
 
         const base64Audio = audioResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
         if (base64Audio) {
-            return `data:audio/wav;base64,${base64Audio}`;
+            return base64Audio;
         }
         return "";
 

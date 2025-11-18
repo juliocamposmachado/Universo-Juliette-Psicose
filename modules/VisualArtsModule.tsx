@@ -10,6 +10,7 @@ export const VisualArtsModule: React.FC = () => {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('juliette_api_key_visuals') || '');
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   
   const [arts, setArts] = useState<GeneratedArt[]>(() => {
     try {
@@ -49,6 +50,16 @@ export const VisualArtsModule: React.FC = () => {
     }
   }, [prompt, apiKey]);
 
+  const handleShare = useCallback((imageUrl: string, index: number) => {
+    navigator.clipboard.writeText(imageUrl).then(() => {
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2500); // Reset after 2.5 seconds
+    }, (err) => {
+      console.error('Não foi possível copiar a URL: ', err);
+      // You could add a user-facing error message here
+    });
+  }, []);
+
   return (
     <div className="space-y-6">
       <LocalStorageWarning />
@@ -83,12 +94,22 @@ export const VisualArtsModule: React.FC = () => {
             </div>
           )}
           {arts.map((art, index) => (
-            <div key={index} className="bg-gray-800 rounded-lg shadow-lg overflow-hidden group animate-fade-in">
+            <div key={index} className="bg-gray-800 rounded-lg shadow-lg overflow-hidden group animate-fade-in flex flex-col">
               <div className="relative">
                 <img src={art.imageUrl} alt={art.prompt} className="w-full h-auto object-cover aspect-[3/4] group-hover:scale-105 transition-transform duration-300" />
               </div>
-              <div className="p-4">
-                <p className="text-gray-400 text-sm truncate">{art.prompt}</p>
+              <div className="p-4 flex flex-col flex-grow justify-between">
+                <p className="text-gray-400 text-sm truncate mb-3">{art.prompt}</p>
+                <button
+                  onClick={() => handleShare(art.imageUrl, index)}
+                  className={`w-full px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    copiedIndex === index
+                      ? 'bg-green-600 text-white'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}
+                >
+                  {copiedIndex === index ? 'URL Copiada!' : 'Compartilhar'}
+                </button>
               </div>
             </div>
           ))}

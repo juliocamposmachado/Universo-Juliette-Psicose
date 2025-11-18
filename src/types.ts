@@ -1,3 +1,10 @@
-// FIX: Removed duplicated type definitions and re-exporting from the single source of truth at the root level.
-// This resolves TypeScript errors related to duplicate identifiers like 'AIStudio' and augmentations of 'Window'.
-export * from '../types';
+// This file centralizes the global window augmentation for 'aistudio'.
+// By isolating this declaration, we prevent TypeScript from processing it multiple times,
+// which resolves "duplicate identifier" errors that can occur in complex project structures.
+import type { AIStudio } from '../types';
+
+declare global {
+  interface Window {
+    aistudio: AIStudio;
+  }
+}
