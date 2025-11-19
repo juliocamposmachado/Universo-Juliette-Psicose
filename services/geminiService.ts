@@ -1,4 +1,5 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
+import type { TransformerSettings } from "../types";
 
 // This file no longer uses a single global API_KEY.
 // The key is passed into each function from the corresponding module.
@@ -249,5 +250,78 @@ export const generateSound = async (
     } catch (error) {
         console.error("Error generating sound:", error);
         return "";
+    }
+};
+
+export const transformImage = async (
+    apiKey: string,
+    imageBase64: string,
+    settings: TransformerSettings
+): Promise<string> => {
+    if (!apiKey) return "Erro: Chave de API não fornecida.";
+
+    try {
+        const ai = new GoogleGenAI({ apiKey });
+
+        // Como o modelo Imagen direto não suporta img2img da mesma forma que prompts de texto simples aqui,
+        // vamos usar uma estratégia híbrida poderosa:
+        // 1. Usar o Gemini Flash (Vision) para analisar a imagem e criar um prompt detalhado baseado nela + settings.
+        // 2. Usar esse prompt otimizado no Imagen para gerar a nova arte.
+        // Isso garante que a identidade visual seja preservada semanticamente.
+
+        const analysisPrompt = `
+            Analise esta imagem detalhadamente. Descreva a composição, o sujeito principal (aparência, pose, roupas), o cenário e a iluminação.
+            O objetivo é recriar esta imagem no estilo: ${settings.preset}.
+            Detalhes importantes a preservar: ${settings.faceAware ? 'Traços faciais e identidade do sujeito.' : 'Composição geral.'}
+            Prompt adicional do usuário: ${settings.promptModifier}
+            
+            Retorne APENAS um prompt de imagem em inglês, otimizado para geração de arte de alta qualidade, que descreva a cena para ser recriada nesse estilo.
+        `;
+
+        const visionResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [
+                {
+                    inlineData: {
+                        mimeType: 'image/jpeg',
+                        data: imageBase64.split(',')[1]
+                    }
+                },
+                { text: analysisPrompt }
+            ]
+        });
+
+        const optimizedPrompt = visionResponse.text;
+
+        if (!optimizedPrompt) throw new Error("Falha na análise da imagem.");
+
+        // Adicionar nuances do "Universo Juliette Psicose"
+        const finalPrompt = `
+            (Universo Juliette Psicose Style), ${settings.preset} style.
+            ${optimizedPrompt}
+            High quality, ${settings.detailLevel} detail level.
+            ${SAGA_STYLE_PROMPT.replace(/\n/g, ' ')}
+        `;
+
+        const imageResponse = await ai.models.generateImages({
+            model: 'imagen-4.0-generate-001',
+            prompt: finalPrompt,
+            config: {
+                numberOfImages: 1,
+                outputMimeType: 'image/jpeg',
+                aspectRatio: '3:4', // Mantendo padrão vertical por enquanto
+            },
+        });
+
+        if (imageResponse.generatedImages && imageResponse.generatedImages.length > 0) {
+            const base64ImageBytes = imageResponse.generatedImages[0].image.imageBytes;
+            return `data:image/jpeg;base64,${base64ImageBytes}`;
+        }
+        
+        return "Erro: Não foi possível gerar a imagem transformada.";
+
+    } catch (error) {
+        console.error("Error transforming image:", error);
+        return "Falha na transformação da imagem. Verifique o console.";
     }
 };

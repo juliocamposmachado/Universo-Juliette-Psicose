@@ -70,3 +70,13 @@ export interface AIStudio {
   hasSelectedApiKey(): Promise<boolean>;
   openSelectKey(): Promise<void>;
 }
+
+// --- NOVO TIPO PARA O MÓDULO TRANSFORMADOR ---
+export interface TransformerSettings {
+  preset: string;
+  styleStrength: number; // 0-100
+  detailLevel: 'low' | 'medium' | 'high' | 'extreme';
+  denoise: number; // 0-100
+  faceAware: boolean;
+  promptModifier: string;
+}
